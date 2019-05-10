@@ -86,6 +86,7 @@ public class CodeGenerator {
 
         mpg.setStrategy(strategy);
         mpg.setTemplateEngine(new FreemarkerTemplateEngine());
+
         // 6、执行
         mpg.execute();
     }
