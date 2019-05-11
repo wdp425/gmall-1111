@@ -3,6 +3,7 @@ package com.atguigu.gmall.admin;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 /**
  * VO:(View Object/Value Object)：视图对象；

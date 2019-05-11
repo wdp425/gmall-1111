@@ -4,6 +4,7 @@ import com.alibaba.dubbo.config.spring.context.annotation.EnableDubbo;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.util.DigestUtils;
 
 
@@ -83,9 +84,14 @@ import org.springframework.util.DigestUtils;
  *      做法：
  *          将默认的序列化器改为json的
  *
+ *
+ * 2、如果发现事务加不上。开启基于注解的事务功能  @EnableTransactionManagement
+ *  如果要真的开启什么功能就显式的加上这个注解。。。。
+ *
  */
 @EnableDubbo
 @MapperScan(basePackages = "com.atguigu.gmall.pms.mapper")
+@EnableTransactionManagement
 @SpringBootApplication
 public class GmallPmsApplication {
 

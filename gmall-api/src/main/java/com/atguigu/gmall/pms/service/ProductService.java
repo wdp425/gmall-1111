@@ -2,6 +2,7 @@ package com.atguigu.gmall.pms.service;
 
 import com.atguigu.gmall.pms.entity.Product;
 import com.atguigu.gmall.vo.PageInfoVo;
+import com.atguigu.gmall.vo.product.PmsProductParam;
 import com.atguigu.gmall.vo.product.PmsProductQueryParam;
 import com.baomidou.mybatisplus.extension.service.IService;
 
@@ -21,4 +22,10 @@ public interface ProductService extends IService<Product> {
      * @return
      */
     PageInfoVo productPageInfo(PmsProductQueryParam productQueryParam);
+
+    /**
+     * 保存商品数据
+     * @param productParam
+     */
+    void saveProduct(PmsProductParam productParam);
 }
