@@ -19,7 +19,7 @@ public class CodeGenerator {
 
     public static void main(String[] args) {
 
-        String moduleName = "sms";
+        String moduleName = "pms";
 
         // 1、创建代码生成器
         AutoGenerator mpg = new AutoGenerator();
@@ -27,7 +27,7 @@ public class CodeGenerator {
         // 2、全局配置
         GlobalConfig gc = new GlobalConfig();
         String projectPath = System.getProperty("user.dir");
-        gc.setOutputDir("G:\\workspace\\idea\\com.atguigu.gmall-parent\\com.atguigu.gmall-mbg" + "/src/main/java");
+        gc.setOutputDir("G:\\workspace\\idea\\gmall-parent\\gmall-mbg" + "/src/main/java");
         gc.setAuthor("Lfy");
         gc.setOpen(false); //生成后是否打开资源管理器
         gc.setFileOverride(false); //重新生成时文件是否覆盖
@@ -36,6 +36,7 @@ public class CodeGenerator {
         gc.setDateType(DateType.ONLY_DATE);//定义生成的实体类中日期类型
         gc.setSwagger2(true);//开启Swagger2模式
         gc.setBaseColumnList(true);
+        gc.setBaseResultMap(true);//生成每个xml的baseResultMap
 
         mpg.setGlobalConfig(gc);
 
@@ -89,5 +90,6 @@ public class CodeGenerator {
 
         // 6、执行
         mpg.execute();
+        System.out.println("生成完成....");
     }
 }

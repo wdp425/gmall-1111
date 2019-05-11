@@ -20,4 +20,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class MemberPriceServiceImpl extends ServiceImpl<MemberPriceMapper, MemberPrice> implements MemberPriceService {
 
+
+
 }

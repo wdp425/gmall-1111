@@ -1,8 +1,8 @@
-package com.atguigu.gmall.pms.service.impl;
+package com/atguigu/gmall.pms.service.impl;
 
-import com.atguigu.gmall.pms.entity.Album;
-import com.atguigu.gmall.pms.mapper.AlbumMapper;
-import com.atguigu.gmall.pms.service.AlbumService;
+import com/atguigu/gmall.pms.entity.Album;
+import com/atguigu/gmall.pms.mapper.AlbumMapper;
+import com/atguigu/gmall.pms.service.AlbumService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
  * </p>
  *
  * @author Lfy
- * @since 2019-05-08
+ * @since 2019-05-11
  */
 @Service
 public class AlbumServiceImpl extends ServiceImpl<AlbumMapper, Album> implements AlbumService {

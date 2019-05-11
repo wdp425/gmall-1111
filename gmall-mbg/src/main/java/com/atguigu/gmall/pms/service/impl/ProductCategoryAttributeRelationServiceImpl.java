@@ -1,8 +1,8 @@
-package com.atguigu.gmall.pms.service.impl;
+package com/atguigu/gmall.pms.service.impl;
 
-import com.atguigu.gmall.pms.entity.ProductCategoryAttributeRelation;
-import com.atguigu.gmall.pms.mapper.ProductCategoryAttributeRelationMapper;
-import com.atguigu.gmall.pms.service.ProductCategoryAttributeRelationService;
+import com/atguigu/gmall.pms.entity.ProductCategoryAttributeRelation;
+import com/atguigu/gmall.pms.mapper.ProductCategoryAttributeRelationMapper;
+import com/atguigu/gmall.pms.service.ProductCategoryAttributeRelationService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
  * </p>
  *
  * @author Lfy
- * @since 2019-05-08
+ * @since 2019-05-11
  */
 @Service
 public class ProductCategoryAttributeRelationServiceImpl extends ServiceImpl<ProductCategoryAttributeRelationMapper, ProductCategoryAttributeRelation> implements ProductCategoryAttributeRelationService {

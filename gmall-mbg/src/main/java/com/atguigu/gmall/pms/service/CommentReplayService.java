@@ -1,6 +1,6 @@
-package com.atguigu.gmall.pms.service;
+package com/atguigu/gmall.pms.service;
 
-import com.atguigu.gmall.pms.entity.CommentReplay;
+import com/atguigu/gmall.pms.entity.CommentReplay;
 import com.baomidou.mybatisplus.extension.service.IService;
 
 /**
@@ -9,7 +9,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
  * </p>
  *
  * @author Lfy
- * @since 2019-05-08
+ * @since 2019-05-11
  */
 public interface CommentReplayService extends IService<CommentReplay> {
 

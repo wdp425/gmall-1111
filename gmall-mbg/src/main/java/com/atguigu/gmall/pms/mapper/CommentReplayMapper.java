@@ -1,6 +1,6 @@
-package com.atguigu.gmall.pms.mapper;
+package com/atguigu/gmall.pms.mapper;
 
-import com.atguigu.gmall.pms.entity.CommentReplay;
+import com/atguigu/gmall.pms.entity.CommentReplay;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
 /**
@@ -9,7 +9,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
  * </p>
  *
  * @author Lfy
- * @since 2019-05-08
+ * @since 2019-05-11
  */
 public interface CommentReplayMapper extends BaseMapper<CommentReplay> {
 

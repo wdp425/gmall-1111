@@ -1,4 +1,4 @@
-package com.atguigu.gmall.pms.entity;
+package com/atguigu/gmall.pms.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.IdType;
@@ -18,7 +18,7 @@ import lombok.experimental.Accessors;
  * </p>
  *
  * @author Lfy
- * @since 2019-05-08
+ * @since 2019-05-11
  */
 @Data
 @EqualsAndHashCode(callSuper = false)
