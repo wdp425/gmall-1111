@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.util.StringUtils;
 
 import java.io.File;
@@ -318,10 +319,7 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         proxy.saveFullReduction(productParam);
 
         //4）、pms_product_ladder：满减表
-
         proxy.saveProductLadder(productParam);
-
-
 
         //以上的写法只是相当于一个saveProduct事务。
 

@@ -1,6 +1,7 @@
 package com.atguigu.gmall.sms.service;
 
 import com.atguigu.gmall.sms.entity.HomeAdvertise;
+import com.atguigu.gmall.vo.PageInfoVo;
 import com.baomidou.mybatisplus.extension.service.IService;
 
 /**
@@ -13,4 +14,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
  */
 public interface HomeAdvertiseService extends IService<HomeAdvertise> {
 
+    int updateStatus(Long id, Integer status);
+
+    PageInfoVo listAdvertiseForPage(String name, Integer type, String endTime, Integer pageSize, Integer pageNum);
 }

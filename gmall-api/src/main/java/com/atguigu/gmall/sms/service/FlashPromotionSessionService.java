@@ -1,6 +1,7 @@
 package com.atguigu.gmall.sms.service;
 
 import com.atguigu.gmall.sms.entity.FlashPromotionSession;
+import com.atguigu.gmall.vo.PageInfoVo;
 import com.baomidou.mybatisplus.extension.service.IService;
 
 /**
@@ -13,4 +14,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
  */
 public interface FlashPromotionSessionService extends IService<FlashPromotionSession> {
 
+    void updateStatus(Long id, Integer status);
+
+    PageInfoVo selectListForPage(Long flashPromotionId);
 }

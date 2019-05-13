@@ -1,7 +1,10 @@
 package com.atguigu.gmall.sms.service;
 
 import com.atguigu.gmall.sms.entity.HomeRecommendSubject;
+import com.atguigu.gmall.vo.PageInfoVo;
 import com.baomidou.mybatisplus.extension.service.IService;
+
+import java.util.List;
 
 /**
  * <p>
@@ -13,4 +16,9 @@ import com.baomidou.mybatisplus.extension.service.IService;
  */
 public interface HomeRecommendSubjectService extends IService<HomeRecommendSubject> {
 
+    void updateSort(Long id, Integer sort);
+
+    void updateRecommendStatus(List<Long> ids, Integer recommendStatus);
+
+    PageInfoVo listForPage(String subjectName, Integer recommendStatus, Integer pageSize, Integer pageNum);
 }

@@ -1,6 +1,7 @@
 package com.atguigu.gmall.sms.service;
 
 import com.atguigu.gmall.sms.entity.FlashPromotionProductRelation;
+import com.atguigu.gmall.vo.PageInfoVo;
 import com.baomidou.mybatisplus.extension.service.IService;
 
 /**
@@ -13,4 +14,13 @@ import com.baomidou.mybatisplus.extension.service.IService;
  */
 public interface FlashPromotionProductRelationService extends IService<FlashPromotionProductRelation> {
 
+    /**
+     * 分页查询不同场次关联及商品信息
+     * @param flashPromotionId
+     * @param flashPromotionSessionId
+     * @param pageSize
+     * @param pageNum
+     * @return
+     */
+    PageInfoVo listRelationForPage(Long flashPromotionId, Long flashPromotionSessionId, Integer pageSize, Integer pageNum);
 }
