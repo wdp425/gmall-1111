@@ -1,6 +1,7 @@
 package com.atguigu.gmall.pms.service.impl;
 
 import com.alibaba.dubbo.config.annotation.Service;
+import com.atguigu.gmall.constant.EsConstant;
 import com.atguigu.gmall.pms.entity.*;
 import com.atguigu.gmall.pms.mapper.*;
 import com.atguigu.gmall.pms.service.HahaService;
@@ -15,6 +16,10 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import io.searchbox.client.JestClient;
+import io.searchbox.core.Delete;
+import io.searchbox.core.DocumentResult;
+import io.searchbox.core.Index;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.BeanUtils;
@@ -41,6 +46,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author Lfy
  * @since 2019-05-08
+ *
+ * 查询多试验几次，增删改要快速失败。
  */
 @Slf4j
 @Service
@@ -66,6 +73,9 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
 
     @Autowired
     HahaService hahaService;
+
+    @Autowired
+    JestClient jestClient;
 
 //    @Autowired
 //    ProductService productService;
@@ -334,6 +344,26 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
 
     }
 
+
+    /**
+     * CudSerivce：增删改service
+     * RService：读service
+     *
+     *1）、dubbo的默认集群容错哪几种，怎么做？
+     * failover/failfast/failsafe/failback/forking；
+     * @Service注解上一配置就行。
+     *
+     *
+     *
+     * 改掉默认的mapping信息；
+     * 1）、改掉不分词的字段
+     * 2）、
+     *
+     *
+     *
+     * @param ids
+     * @param publishStatus
+     */
     @Override
     public void updatePublishStatus(List<Long> ids, Integer publishStatus) {
         if(publishStatus == 0){
@@ -354,15 +384,41 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
                 saveProductToEs(id);
             });
         }
-
-
     }
 
     private void deleteProductFromEs(Long id) {
 
+        Delete delete = new Delete.Builder(id.toString()).index(EsConstant.PRODUCT_ES_INDEX)
+                .type(EsConstant.PRODUCT_INFO_ES_TYPE)
+                .build();
+        try {
+            DocumentResult execute = jestClient.execute(delete);
+            if(execute.isSucceeded()){
+                log.info("商品：{} ==》ES下架完成",id);
+            }else {
+                //deleteProductFromEs(id);
+                log.error("商品：{} ==》ES下架失败",id);
+            }
+        }catch (Exception e){
+            //deleteProductFromEs(id);
+            log.error("商品：{} ==》ES下架失败",id);
+        }
+
 
     }
 
+
+    /**
+     * 给数据库插入数据
+     * 1）、dubbo远程调用插入数据服务，可能经常超时。dubbo默认会重试
+     * 导致这个方法会被调用多次。可能导致数据库同样的数据有多个。
+     *
+     * 2）、dubbo有自己默认的集群容错。
+     *
+     * 给数据库做数据的，最好用dubbo的快速失败模式。我们手工重试
+     *
+     * @param id
+     */
     private void saveProductToEs(Long id) {
         //1、查出商品的基本新
         Product productInfo = productInfo(id);
@@ -419,8 +475,9 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
                     value.setValue(skuStock.getSp3());
                 }
 
-            }
+                skuAttributeValues.add(value);
 
+            }
 
 
             info.setAttributeValues(skuAttributeValues);
@@ -437,7 +494,26 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         //3、复制公共属性信息，查出这个商品的公共属性
         esProduct.setAttrValueList(attributeValues);
 
-        //把商品所有的sku信息拿出来
+        try {
+            //把商品保存到es中
+            Index build = new Index.Builder(esProduct)
+                    .index(EsConstant.PRODUCT_ES_INDEX)
+                    .type(EsConstant.PRODUCT_INFO_ES_TYPE)
+                    .id(id.toString())
+                    .build();
+            DocumentResult execute = jestClient.execute(build);
+            boolean succeeded = execute.isSucceeded();
+            if(succeeded){
+                log.info("ES中；id为{}商品上架完成",id);
+            }else {
+                log.error("ES中；id为{}商品未保存成功，开始重试",id);
+                //saveProductToEs(id);
+            }
+        }catch (Exception e){
+            log.error("ES中；id为{}商品数据保存异常；{}",id,e.getMessage());
+            //saveProductToEs(id);
+        }
+
     }
 
     public void setProductPublishStatus(Integer publishStatus, Long id) {

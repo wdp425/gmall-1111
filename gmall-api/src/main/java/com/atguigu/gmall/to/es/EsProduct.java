@@ -32,6 +32,7 @@ public class EsProduct  implements Serializable {
     private Integer commentCount;//评论数量共享spu
 
 
+    //嵌入式对象的Mapping一定要用nested声明，这样才能正确的检索到数据
     private List<EsProductAttributeValue> attrValueList;//商品的筛选属性(SPU的属性);
 
     //sku也要供搜索
