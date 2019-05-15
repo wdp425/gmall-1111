@@ -5,6 +5,9 @@ import com.atguigu.gmall.pms.entity.*;
 import com.atguigu.gmall.pms.mapper.*;
 import com.atguigu.gmall.pms.service.HahaService;
 import com.atguigu.gmall.pms.service.ProductService;
+import com.atguigu.gmall.to.es.EsProduct;
+import com.atguigu.gmall.to.es.EsProductAttributeValue;
+import com.atguigu.gmall.to.es.EsSkuProductInfo;
 import com.atguigu.gmall.vo.PageInfoVo;
 import com.atguigu.gmall.vo.product.PmsProductParam;
 import com.atguigu.gmall.vo.product.PmsProductQueryParam;
@@ -25,9 +28,11 @@ import org.springframework.util.StringUtils;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * <p>
@@ -72,6 +77,10 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
     private Map<Thread,Long> map = new HashMap<>();
 
 
+    @Override
+    public Product productInfo(Long id) {
+        return productMapper.selectById(id);
+    }
 
     @Override
     public PageInfoVo productPageInfo(PmsProductQueryParam param) {
@@ -324,6 +333,123 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         //以上的写法只是相当于一个saveProduct事务。
 
     }
+
+    @Override
+    public void updatePublishStatus(List<Long> ids, Integer publishStatus) {
+        if(publishStatus == 0){
+            ids.forEach((id)->{
+                //下架
+                //改数据库状态
+                setProductPublishStatus(publishStatus, id);
+                //删es
+                deleteProductFromEs(id);
+            });
+
+        }else {
+            //上架
+            ids.forEach((id)->{
+                //该数据状态
+                setProductPublishStatus(publishStatus, id);
+                //加es
+                saveProductToEs(id);
+            });
+        }
+
+
+    }
+
+    private void deleteProductFromEs(Long id) {
+
+
+    }
+
+    private void saveProductToEs(Long id) {
+        //1、查出商品的基本新
+        Product productInfo = productInfo(id);
+        EsProduct esProduct = new EsProduct();
+
+
+        //1、复制基本信息
+        BeanUtils.copyProperties(productInfo,esProduct);
+
+
+        //2、复制sku信息，对于es要保存商品信息,还要查出这个商品的sku，给es中保存
+        List<SkuStock> stocks = skuStockMapper.selectList(new QueryWrapper<SkuStock>().eq("product_id", id));
+        List<EsSkuProductInfo> esSkuProductInfos = new ArrayList<>(stocks.size());
+
+
+        //查出当前商品的sku属性  颜色  尺码
+        List<ProductAttribute>  skuAttributeNames = productAttributeValueMapper.selectProductSaleAttrName(id);
+        stocks.forEach((skuStock)->{
+            EsSkuProductInfo info = new EsSkuProductInfo();
+            BeanUtils.copyProperties(skuStock,info);
+
+            //闪亮 黑色
+            String subTitle = esProduct.getName();
+            if(!StringUtils.isEmpty(skuStock.getSp1())){
+                subTitle+=" "+skuStock.getSp1();
+            }
+            if(!StringUtils.isEmpty(skuStock.getSp2())){
+                subTitle+=" "+skuStock.getSp2();
+            }
+            if(!StringUtils.isEmpty(skuStock.getSp3())){
+                subTitle+=" "+skuStock.getSp3();
+            }
+            //sku的特色标题
+            info.setSkuTitle(subTitle);
+            List<EsProductAttributeValue> skuAttributeValues = new ArrayList<>();
+
+            for (int i=0;i<skuAttributeNames.size();i++){
+                //skuAttr 颜色/尺码
+                EsProductAttributeValue value = new EsProductAttributeValue();
+
+                value.setName(skuAttributeNames.get(i).getName());
+                value.setProductId(id);
+                value.setProductAttributeId(skuAttributeNames.get(i).getId());
+                value.setType(skuAttributeNames.get(i).getType());
+
+                //颜色   尺码;让es去统计‘；改掉查询商品的属性分类里面所有属性的时候，按照sort字段排序好
+                if(i==0){
+                    value.setValue(skuStock.getSp1());
+                }
+                if(i==1){
+                    value.setValue(skuStock.getSp2());
+                }
+                if(i==2){
+                    value.setValue(skuStock.getSp3());
+                }
+
+            }
+
+
+
+            info.setAttributeValues(skuAttributeValues);
+            //sku有多个销售属性；颜色，尺码
+            esSkuProductInfos.add(info);
+            //查出销售属性的名
+
+        });
+
+        esProduct.setSkuProductInfos(esSkuProductInfos);
+
+
+        List<EsProductAttributeValue> attributeValues = productAttributeValueMapper.selectProductBaseAttrAndValue(id);
+        //3、复制公共属性信息，查出这个商品的公共属性
+        esProduct.setAttrValueList(attributeValues);
+
+        //把商品所有的sku信息拿出来
+    }
+
+    public void setProductPublishStatus(Integer publishStatus, Long id) {
+        //javaBean应该都去用包装类型
+        Product product = new Product();
+        //默认所有属性为null
+        product.setId(id);
+        product.setPublishStatus(publishStatus);
+        //mybatis-plus自带的更新方法是哪个字段有值就更哪个字段
+        productMapper.updateById(product);
+    }
+
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void saveSkuStock(PmsProductParam productParam) {
