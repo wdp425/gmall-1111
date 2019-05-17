@@ -1,15 +1,19 @@
 package com.atguigu.gmall.search.service.impl;
 
 import com.alibaba.dubbo.config.annotation.Service;
+import com.alibaba.fastjson.JSON;
 import com.atguigu.gmall.constant.EsConstant;
 import com.atguigu.gmall.search.SearchProductService;
 import com.atguigu.gmall.to.es.EsProduct;
 import com.atguigu.gmall.vo.search.SearchParam;
 import com.atguigu.gmall.vo.search.SearchResponse;
+import com.atguigu.gmall.vo.search.SearchResponseAttrVo;
 import io.searchbox.client.JestClient;
 import io.searchbox.core.Search;
 import io.searchbox.core.SearchResult;
+import io.searchbox.core.search.aggregation.ChildrenAggregation;
 import io.searchbox.core.search.aggregation.MetricAggregation;
+import io.searchbox.core.search.aggregation.TermsAggregation;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.lucene.search.join.ScoreMode;
 import org.elasticsearch.index.query.*;
@@ -26,7 +30,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 @Slf4j
@@ -72,11 +79,94 @@ public class SearchProductServiceImpl implements SearchProductService {
         MetricAggregation aggregations = execute.getAggregations();
 
 
-//        searchResponse.setAttrs();//所有可以筛选的属性
-//        searchResponse.setBrand();//可供选择的品牌
-//        searchResponse.setCatelog();//可供选择分类
+        //===================以下是分析聚合品牌信息===============================
+        TermsAggregation brand_agg = aggregations.getTermsAggregation("brand_agg");
+        List<String> brandNames = new ArrayList<>();
+
+        brand_agg.getBuckets().forEach((bucket)->{
+            String keyAsString = bucket.getKeyAsString();
+            brandNames.add(keyAsString);
+        });
+        SearchResponseAttrVo attrVo = new SearchResponseAttrVo();
+
+        attrVo.setName("品牌");
+        attrVo.setValue(brandNames);
+        //searchResponse.setBrand();//可供选择的品牌
+        searchResponse.setBrand(attrVo);
+        //=====================品牌提取完成===========================
+
+
+        //=============以下提取分类信息======================
+        TermsAggregation category_agg = aggregations.getTermsAggregation("category_agg");
+        List<String> categoryValues = new ArrayList<>();
+
+        category_agg.getBuckets().forEach((bucket)->{
+            String categoryName = bucket.getKeyAsString();
+            TermsAggregation categoryId_agg = bucket.getTermsAggregation("categoryId_agg");
+            String categoryId = categoryId_agg.getBuckets().get(0).getKeyAsString();
+
+            Map<String,String> map = new HashMap<>();
+            map.put("id",categoryId);
+            map.put("name",categoryName);
+            String cateInfo = JSON.toJSONString(map);
+            categoryValues.add(cateInfo);
+        });
+
+        SearchResponseAttrVo catelog = new SearchResponseAttrVo();
+        catelog.setName("分类");
+        catelog.setValue(categoryValues);
+
+        searchResponse.setCatelog(catelog);
+        //==================分类信息提取完成========================
+
+
+        //==================提取聚合的属性信息=============
+        TermsAggregation termsAggregation = aggregations.getChildrenAggregation("attr_agg")
+                .getTermsAggregation("attrName_agg");
+        List<SearchResponseAttrVo> attrList = new ArrayList<>();
+
+
+        termsAggregation.getBuckets().forEach((bucket)->{
+            SearchResponseAttrVo vo = new SearchResponseAttrVo();
+            //属性的名字
+            String attrName = bucket.getKeyAsString();
+            vo.setName(attrName);
+
+            //属性的id
+            TermsAggregation attrIdAgg = bucket.getTermsAggregation("attrId_agg");
+            vo.setProductAttributeId(Long.parseLong(attrIdAgg.getBuckets().get(0).getKeyAsString()));
+
+            //属性的所涉及的所有值
+            TermsAggregation attrValueAgg = bucket.getTermsAggregation("attrValue_agg");
+            List<String> valuesList = new ArrayList<>();
+            attrValueAgg.getBuckets().forEach((vauleBucket)->{
+                valuesList.add(vauleBucket.getKeyAsString());
+            });
+            vo.setValue(valuesList);
+            attrList.add(vo);
+        });
+
+        searchResponse.setAttrs(attrList);
+        //==================提取聚合的属性信息完成=============
+
+
+        //===============提取检索到的商品数据=========================
         List<SearchResult.Hit<EsProduct, Void>> hits = execute.getHits(EsProduct.class);
+        List<EsProduct> esProducts = new ArrayList<>();
 //        searchResponse.setProducts();//将查到的记录分封装
+        hits.forEach((hit)->{
+            EsProduct source = hit.source;
+            //提取到高亮结果
+            String title = hit.highlight.get("skuProductInfos.skuTitle").get(0);
+            //设置高亮结果
+            source.setName(title);
+            esProducts.add(source);
+        });
+        searchResponse.setProducts(esProducts);
+        //==============提取检索到的商品数据完成============
+
+
+
 
 
 
