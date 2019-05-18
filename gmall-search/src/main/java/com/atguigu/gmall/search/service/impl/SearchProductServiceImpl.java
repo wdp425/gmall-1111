@@ -73,6 +73,11 @@ public class SearchProductServiceImpl implements SearchProductService {
         return searchResponse;
     }
 
+    /**
+     * 构建检索结果
+     * @param execute
+     * @return
+     */
     private SearchResponse buildSearchResponse(SearchResult execute) {
         SearchResponse searchResponse = new SearchResponse();
 
@@ -177,6 +182,11 @@ public class SearchProductServiceImpl implements SearchProductService {
         return searchResponse;
     }
 
+    /**
+     * 构建检索DSL语句
+     * @param searchParam
+     * @return
+     */
     private String buildDsl(SearchParam searchParam) {
 
         SearchSourceBuilder builder = new SearchSourceBuilder();

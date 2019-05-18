@@ -44,7 +44,7 @@ public class ProductCategoryServiceImpl extends ServiceImpl<ProductCategoryMappe
      * @return
      */
     @Override
-    public List<PmsProductCategoryWithChildrenItem> listCatelogWithChilder(Integer i) {
+    public synchronized List<PmsProductCategoryWithChildrenItem> listCatelogWithChilder(Integer i) {
         Object cacheMenu = redisTemplate.opsForValue().get(SysCacheConstant.CATEGORY_MENU_CACHE_KEY);
         List<PmsProductCategoryWithChildrenItem> items;
         if(cacheMenu!=null){
