@@ -1,10 +1,11 @@
 package com.atguigu.locks.service;
 
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
-import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
@@ -12,6 +13,8 @@ import redis.clients.jedis.params.SetParams;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Service
@@ -22,10 +25,94 @@ public class RedisIncrService {
     @Autowired
     JedisPool jedisPool;
 
+
+
+    AtomicInteger integer = new AtomicInteger(1);
+    int i = 1;
+
     private Object obj = new Object();
     ReentrantLock lock = new ReentrantLock();
 
     Map<String,Object> map = new HashMap<>();
+
+    @Autowired
+    RedissonClient redisson;
+
+    /**
+     * Map cache = new Map();
+     * a(){
+     *     cache.put(k,v)
+     * }
+     *
+     *
+     * 缓存污染。
+     * b(){
+     *     V v = cache.get(k);
+     *     v.setAge(19);
+     *     if(v.age==18){
+     *         //吃饭
+     *     }
+     *
+     * }
+     *
+     * c(){
+     *     V v = cache.get(k);
+     *     if(v.age==18){
+     *         //睡觉
+     *     }
+     * }
+     *
+     *
+     *
+     */
+
+
+    public void useRedissonForLock(){
+        //map.put(k,v)
+        //integer.compareAndSet(1,2);
+
+        //利用CAS算法可以结算。ABA；
+        int i1 = integer.incrementAndGet();
+
+
+//        synchronized (){
+//            System.out.println("");
+//        }
+
+
+
+        lock.lock();
+
+        //
+        Condition condition1 = lock.newCondition();
+        Condition condition2 = lock.newCondition();
+
+        //
+
+        
+        
+
+        
+        
+        lock.unlock();
+        //1、获取一把锁。只要各个代码，用的锁名一样即可
+        RLock lock = redisson.getLock("lock");
+        try {
+            //lock.lock();//一直等待。阻塞住
+            //感知别人删锁。发布订阅模式（实时感知）。   lock监听redis，redis一旦删锁。赶紧尝试去加锁。
+
+            lock.lock(3,TimeUnit.SECONDS);//加锁带自动解锁
+            Jedis jedis = jedisPool.getResource();
+            String num = jedis.get("num");
+            Integer i = Integer.parseInt(num);
+            i = i+1;
+            jedis.set("num",i.toString());
+            jedis.close();
+        }finally {
+            lock.unlock();//解锁
+        }
+    }
+
 
     public void chaMap(){
         map.put("hello","123");

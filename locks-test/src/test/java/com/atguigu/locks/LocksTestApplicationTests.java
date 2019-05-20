@@ -1,5 +1,6 @@
 package com.atguigu.locks;
 
+import com.atguigu.locks.service.RedisIncrService;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,17 +16,22 @@ import redis.clients.jedis.JedisPoolConfig;
 @SpringBootTest
 public class LocksTestApplicationTests {
 
-    @Autowired
+   // @Autowired
     JedisPool jedisPool;
+
+    @Autowired
+    RedisIncrService redisIncrService;
     @Test
     public void contextLoads() {
-
-        System.out.println(jedisPool);
-        Jedis jedis = jedisPool.getResource();
-        jedis.set("hello","666");
-
-
-        System.out.println(jedis.get("hello"));
+//
+//        System.out.println(jedisPool);
+//        Jedis jedis = jedisPool.getResource();
+//        jedis.set("hello","666");
+//
+//
+//        System.out.println(jedis.get("hello"));
+        redisIncrService.useRedissonForLock();
+        System.out.println("ok............");
 
     }
 

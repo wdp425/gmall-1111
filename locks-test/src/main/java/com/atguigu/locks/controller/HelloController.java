@@ -24,4 +24,10 @@ public class HelloController {
         redisIncrService.incrDistribute();
         return "ok";
     }
+
+    @GetMapping("/incr3")
+    public String incr3(){
+        redisIncrService.useRedissonForLock();
+        return "ok";
+    }
 }
