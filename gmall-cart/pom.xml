@@ -9,41 +9,38 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.atguigu.gmall</groupId>
-    <artifactId>gmall-sso-server</artifactId>
+    <artifactId>gmall-cart</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>gmall-sso-server</name>
-    <description>认证中心</description>
+    <name>gmall-cart</name>
+    <description>购物车有关的服务</description>
 
     <properties>
         <java.version>1.8</java.version>
     </properties>
 
     <dependencies>
-
         <dependency>
             <groupId>com.atguigu.gmall</groupId>
             <artifactId>gmall-api</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+            <artifactId>spring-boot-starter</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
-
         <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <optional>true</optional>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson</artifactId>
+            <version>3.10.0</version>
         </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

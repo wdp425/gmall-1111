@@ -34,18 +34,18 @@ public class HelloController {
                         HttpServletRequest request,
                         HttpServletResponse response) throws IOException {
 
+        /**
+         * 我们不要把无意义的uuid放进去。我们把token制作成jwt；
+         * header.claims.sign
+         */
         if(!StringUtils.isEmpty(ssoUserParam)){
             //没有调用认证服务器登录后跳转回来,说明远程登录了。
-
             Cookie sso_user = new Cookie("sso_user", ssoUserParam);
             response.addCookie(sso_user);
 
 
             return "index";
         }
-
-
-
         StringBuffer requestURL = request.getRequestURL();
 
         //1、判断是否登录了
