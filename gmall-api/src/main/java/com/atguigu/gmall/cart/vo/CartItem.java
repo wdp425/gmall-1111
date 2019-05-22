@@ -42,7 +42,7 @@ public class CartItem implements Serializable {
 
     //以上是购物项的基本信息
     @Getter
-    private Boolean check;//购物项的选中状态
+    private boolean check = true;//购物项的选中状态
     @Getter
     private Integer count;//有多少个
 

@@ -21,20 +21,30 @@ public class Cart implements Serializable {
 
     //购物车数据返回给前端
     public Integer getCount() {
-        AtomicInteger integer = new AtomicInteger(0);
-        cartItems.forEach((cartItem)->{
-            integer.getAndAdd(cartItem.getCount());
-        });
-        return integer.get();
+        if(cartItems!=null){
+            AtomicInteger integer = new AtomicInteger(0);
+            cartItems.forEach((cartItem)->{
+                integer.getAndAdd(cartItem.getCount());
+            });
+            return integer.get();
+        }else {
+            return 0;
+        }
+
     }
 
     public BigDecimal getTotalPrice() {
 
-        AtomicReference<BigDecimal> allTotal = new AtomicReference<>(new BigDecimal("0"));
-        cartItems.forEach((cartItem)->{
-            BigDecimal add = allTotal.get().add(cartItem.getTotalPrice());
-            allTotal.set(add);
-        });
-        return allTotal.get();
+        if(cartItems!=null){
+            AtomicReference<BigDecimal> allTotal = new AtomicReference<>(new BigDecimal("0"));
+            cartItems.forEach((cartItem)->{
+                BigDecimal add = allTotal.get().add(cartItem.getTotalPrice());
+                allTotal.set(add);
+            });
+            return allTotal.get();
+        }else {
+            return new BigDecimal("0");
+        }
+
     }
 }
