@@ -6,6 +6,7 @@ import com.atguigu.gmall.vo.order.OrderCreateVo;
 import com.baomidou.mybatisplus.extension.service.IService;
 
 import java.math.BigDecimal;
+import java.util.Map;
 
 /**
  * <p>
@@ -28,5 +29,12 @@ public interface OrderService extends IService<Order> {
     OrderCreateVo createOrder(BigDecimal totalPrice, Long addressId, String note);
 
 
+    String pay(String orderSn, String accessToken);
 
+    /**
+     * 解析最终的支付结果
+     * @param params
+     * @return
+     */
+    String resolvePayResult(Map<String, String> params);
 }

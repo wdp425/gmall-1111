@@ -5,11 +5,12 @@ import com.atguigu.gmall.sms.entity.Coupon;
 import com.atguigu.gmall.ums.entity.MemberReceiveAddress;
 import lombok.Data;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.List;
 
 @Data
-public class OrderConfirmVo {
+public class OrderConfirmVo implements Serializable {
 
     List<CartItem> items;//购物项
     List<MemberReceiveAddress> addresses;//地址列表

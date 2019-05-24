@@ -71,4 +71,11 @@ public interface CartService {
      * @return
      */
     List<CartItem> getCartItemForOrder(String accessToken);
+
+    /**
+     * 清除购物车下单商品
+     * @param accessToken
+     * @param skuIds
+     */
+    void removeCartItem(String accessToken, List<Long> skuIds);
 }
