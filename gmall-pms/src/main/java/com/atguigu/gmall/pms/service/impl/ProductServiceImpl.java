@@ -436,6 +436,11 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         return esProduct;
     }
 
+    @Override
+    public SkuStock skuInfoById(Long skuId) {
+        return skuStockMapper.selectById(skuId);
+    }
+
     private void deleteProductFromEs(Long id) {
 
         Delete delete = new Delete.Builder(id.toString()).index(EsConstant.PRODUCT_ES_INDEX)

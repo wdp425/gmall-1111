@@ -3,6 +3,7 @@ package com.atguigu.gmall.cart.service.impl;
 import com.alibaba.dubbo.config.annotation.Reference;
 import com.alibaba.dubbo.config.annotation.Service;
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.TypeReference;
 import com.atguigu.gmall.cart.component.MemberComponent;
 import com.atguigu.gmall.cart.service.CartService;
 import com.atguigu.gmall.cart.vo.Cart;
@@ -16,6 +17,7 @@ import com.atguigu.gmall.pms.entity.SkuStock;
 import com.atguigu.gmall.pms.service.ProductService;
 import com.atguigu.gmall.pms.service.SkuStockService;
 import com.atguigu.gmall.ums.entity.Member;
+import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RMap;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
@@ -24,13 +26,12 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Service
 @Component
 public class CartServiceImpl implements CartService {
@@ -74,8 +75,14 @@ public class CartServiceImpl implements CartService {
         cartResponse.setCartItem(cartItem);
         //设置临时购物车用户的cartKey
         cartResponse.setCartKey(userCartKey.getTempCartKey());
+
+
+
         //返回整个购物车方便操作....
         cartResponse.setCart(listCart(cartKey, accessToken).getCart());
+
+
+
         return cartResponse;
     }
 
@@ -120,9 +127,11 @@ public class CartServiceImpl implements CartService {
         
         if(map!=null&&!map.isEmpty()){
             map.entrySet().forEach((item)->{
-                String value = item.getValue();
-                CartItem cartItem = JSON.parseObject(value, CartItem.class);
-                cartItems.add(cartItem);
+                if(!item.getKey().equalsIgnoreCase(CartConstant.CART_CHECKED_KEY)){
+                    String value = item.getValue();
+                    CartItem cartItem = JSON.parseObject(value, CartItem.class);
+                    cartItems.add(cartItem);
+                }
             });
             cart.setCartItems(cartItems);
         }else {
@@ -141,12 +150,14 @@ public class CartServiceImpl implements CartService {
 
         UserCartKey userCartKey = memberComponent.getCartKey(accessToken, cartKey);
 
+
         String finalCartKey = userCartKey.getFinalCartKey();
+        //维护购物项的checked状态
+        checkItem(Arrays.asList(skuId),false,finalCartKey);
 
         //获取购物车删除购物项
         RMap<String, String> map = redissonClient.getMap(finalCartKey);
         map.remove(skuId.toString());
-
 
         //整个购物车再返回出去
         CartResponse cartResponse = listCart(cartKey, accessToken);
@@ -169,8 +180,45 @@ public class CartServiceImpl implements CartService {
     @Override
     public CartResponse checkCartItems(String skuIds, Integer ops, String cartKey, String accessToken) {
 
-        //1、找到每个skuId对应的购物车中的json，把状态check改为 ops对应的值
+        List<Long> skuIdsList = new ArrayList<>();
+        UserCartKey userCartKey = memberComponent.getCartKey(accessToken, cartKey);
+        String finalCartKey = userCartKey.getFinalCartKey();
+        RMap<String, String> cart = redissonClient.getMap(finalCartKey);
+        boolean checked = ops==1?true:false;
+
+        //修改购物项状态
+        if(!StringUtils.isEmpty(skuIds)){
+            String[] ids = skuIds.split(",");
+            for (String id:ids){
+                long skuId = Long.parseLong(id);
+                skuIdsList.add(skuId);
+                //1、找到每个skuId对应的购物车中的json，把状态check改为 ops对应的值
+                //找到购物车中这个sku进行状态修改
+                if(cart!=null&&!cart.isEmpty()){
+                    String jsonValue = cart.get(id);
+                    //转换这个CartItem
+                    CartItem cartItem = JSON.parseObject(jsonValue, CartItem.class);
+                    cartItem.setCheck(checked);
+                    //覆盖redis原数据
+                    cart.put(id,JSON.toJSONString(cartItem));
+                }
+            }
+        }
+        
+        //修改checked集合的状态
         //2、为了快速找到那个被选中了，我们单独维护了数组  数组在map中用的key 是  checked 值是Set集合最好
+        checkItem(skuIdsList,checked,finalCartKey);
+
+        //3、返回整个购物车
+        CartResponse cartResponse = listCart(cartKey, accessToken);
+        return cartResponse;
+    }
+
+    @Override
+    public List<CartItem> getCartItemForOrder(String accessToken) {
+
+
+
 
         return null;
     }
@@ -224,8 +272,6 @@ public class CartServiceImpl implements CartService {
 
 
         //0、查出skuId在数据库对应的最新详情,远程查询
-
-
         /**
          * 购物车集合 k[skuId]是str  v[购物项]是str（json）
          *
@@ -257,6 +303,9 @@ public class CartServiceImpl implements CartService {
             String string = JSON.toJSONString(newCartItem);
             map.put(skuId.toString(),string);
         }
+        //维护勾选状态列表
+        checkItem(Arrays.asList(skuId),true,finalCartKey);
+
         return newCartItem;
     }
 
@@ -279,15 +328,20 @@ public class CartServiceImpl implements CartService {
             map.entrySet().forEach((item)->{
                 //skuId
                 String key = item.getKey();
-                //购物项的json数据
-                String value = item.getValue();
-                CartItem cartItem = JSON.parseObject(value, CartItem.class);
+                if(!key.equalsIgnoreCase(CartConstant.CART_CHECKED_KEY)){
+                    //购物项的json数据
+                    String value = item.getValue();
+                    CartItem cartItem = JSON.parseObject(value, CartItem.class);
 
-                try {
-                    addItemToCart(Long.parseLong(key),cartItem.getCount(),userCartKey);
-                } catch (Exception e) {
-                    e.printStackTrace();
+                    try {
+                        addItemToCart(Long.parseLong(key),cartItem.getCount(),userCartKey);
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+
                 }
+
             });
 
             map.clear();
@@ -299,4 +353,25 @@ public class CartServiceImpl implements CartService {
 
     }
 
+
+    private void checkItem(List<Long> skuId,boolean checked,String finalCartKey){
+        RMap<String , String> cart = redissonClient.getMap(finalCartKey);
+        String checkedJson = cart.get(CartConstant.CART_CHECKED_KEY);
+        Set<Long> longSet = JSON.parseObject(checkedJson, new TypeReference<Set<Long>>() {
+        });//[1,3]
+        //防止空指针
+        if(longSet==null||longSet.isEmpty()){
+            longSet = new LinkedHashSet<>();
+        }
+        if(checked){
+            //如果当前操作都是选中购物项
+            longSet.addAll(skuId);
+            log.info("被选中的商品{}",longSet);
+        }else {
+            longSet.removeAll(skuId);
+            log.info("被移除不选中的商品{}",longSet);
+        }
+        //重新保存被选中的商品
+        cart.put(CartConstant.CART_CHECKED_KEY,JSON.toJSONString(longSet));
+    }
 }

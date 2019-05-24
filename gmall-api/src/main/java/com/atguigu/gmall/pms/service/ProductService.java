@@ -1,6 +1,7 @@
 package com.atguigu.gmall.pms.service;
 
 import com.atguigu.gmall.pms.entity.Product;
+import com.atguigu.gmall.pms.entity.SkuStock;
 import com.atguigu.gmall.to.es.EsProduct;
 import com.atguigu.gmall.vo.PageInfoVo;
 import com.atguigu.gmall.vo.product.PmsProductParam;
@@ -50,4 +51,6 @@ public interface ProductService extends IService<Product> {
 
 
     EsProduct produSkuInfo(Long id);
+
+    SkuStock skuInfoById(Long skuId);
 }
