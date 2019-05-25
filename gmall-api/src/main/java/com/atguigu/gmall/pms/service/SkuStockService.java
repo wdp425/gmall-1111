@@ -16,4 +16,6 @@ import java.math.BigDecimal;
 public interface SkuStockService extends IService<SkuStock> {
 
     BigDecimal getSkuPriceBySkuId(Long skuId);
+
+    public boolean lockSkuLockStock(Long skuId,Integer lock);
 }

@@ -9,7 +9,7 @@ public enum OrderStatusEnume {
 
 
     UNPAY(0,"待付款"),PAYED(1,"已支付，待发货"),SENDED(2,"已发货")
-    ,CLOSED(4,"已关闭"),FINISHED(3,"已完成"),UNVAILED(5,"无效订单");
+    ,CLOSED(4,"已关闭"),FINISHED(3,"已完成"),UNVAILED(5,"无效订单"),CANCEL(6,"订单已取消");
 
     private Integer code;
     private String msg;

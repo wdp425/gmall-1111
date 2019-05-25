@@ -18,8 +18,7 @@
         <module>gmall-pms</module>
         <module>gmall-sms</module>
         <module>gmall-ums</module>
-        <module>gmall-sso-web</module>
-
+        <module>gmall-sso-server</module>
     </modules>
 
 

@@ -7,11 +7,13 @@ import com.alibaba.fastjson.JSON;
 import com.alipay.api.AlipayApiException;
 import com.alipay.api.AlipayClient;
 import com.alipay.api.DefaultAlipayClient;
+import com.alipay.api.domain.Car;
 import com.alipay.api.internal.util.AlipaySignature;
 import com.alipay.api.request.AlipayTradePagePayRequest;
 import com.atguigu.gmall.cart.service.CartService;
 import com.atguigu.gmall.cart.vo.CartItem;
 import com.atguigu.gmall.constant.OrderStatusEnume;
+import com.atguigu.gmall.constant.RoutingKeyConstant;
 import com.atguigu.gmall.constant.SysCacheConstant;
 import com.atguigu.gmall.oms.component.MemberComponent;
 import com.atguigu.gmall.oms.config.AlipayConfig;
@@ -30,6 +32,7 @@ import com.atguigu.gmall.to.es.EsSkuProductInfo;
 import com.atguigu.gmall.ums.entity.Member;
 import com.atguigu.gmall.ums.entity.MemberReceiveAddress;
 import com.atguigu.gmall.ums.service.MemberService;
+import com.atguigu.gmall.vo.mq.OrderMQVo;
 import com.atguigu.gmall.vo.order.OrderConfirmVo;
 import com.atguigu.gmall.vo.order.OrderCreateVo;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -38,15 +41,23 @@ import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.extension.service.additional.query.impl.QueryChainWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.rabbitmq.client.Channel;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -86,7 +97,44 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
     @Autowired
     OrderItemMapper orderItemMapper;
 
+    @Autowired
+    RabbitTemplate rabbitTemplate;
+
+//    php 将锁库存暴露成http服务；发请求给php    RestTemplate HttpClient
+
+
     ThreadLocal<List<CartItem>> threadLocal = new ThreadLocal<>();
+
+    /**
+     * 定时关单
+     * @param
+     * @return
+     */
+    @RabbitListener(queues = "order-dead-queue")
+    public void closeOrder(OrderMQVo orderMQVo, Channel channel, Message  message) throws IOException {
+        log.info("收到需要关闭的订单信息：{}",orderMQVo);
+        //去数据库查看当前订单的支付状态，如果没支付就关闭订单；
+        String orderSn = orderMQVo.getOrder().getOrderSn();
+        try{
+            Order order = orderMapper.selectOne(new QueryWrapper<Order>().eq("", ""));
+            if(order.getStatus() == OrderStatusEnume.UNPAY.getCode()){
+                //订单还未支付
+                Order updateOrder = new Order();
+                updateOrder.setId(order.getId());
+                updateOrder.setStatus(OrderStatusEnume.CANCEL.getCode());
+                orderMapper.updateById(updateOrder);
+                log.info("订单关闭，并且发送库存解锁消息：{}",orderMQVo);
+                //将这个订单消息路由给解锁库存的人
+                rabbitTemplate.convertAndSend("order-exchange", RoutingKeyConstant.ORDER_RELEASE_QUEUE_ROUTING_KEY,orderMQVo);
+            }
+            channel.basicAck(message.getMessageProperties().getDeliveryTag(),false);
+        }catch (Exception e){
+            //重新入队发给别人做
+            channel.basicReject(message.getMessageProperties().getDeliveryTag(),true);
+        }
+
+    }
+
 
 
 
@@ -136,9 +184,14 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
     }
 
 
+
+
+
+
     @Transactional
     @Override
     public OrderCreateVo createOrder(BigDecimal frontTotalPrice, Long addressId, String note) {
+
 
         //0、防重复；
         //禁止传以下参数：
@@ -196,6 +249,34 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         }
 
 
+        //开始下订单
+        AtomicReference<List<CartItem>> cartItems = new AtomicReference<List<CartItem>>();
+        cartItems.set(threadLocal.get());
+
+        //全部扣库存失败的项目
+        AtomicReference<List<CartItem>> noStockItem = new AtomicReference<List<CartItem>>();
+        noStockItem.set(new ArrayList<>());
+        //1）、异步锁库存
+        CompletableFuture<Boolean> future = CompletableFuture.supplyAsync(() -> {
+            boolean flag = true;
+            //拿到所有的订单项。
+            List<CartItem> items = cartItems.get();
+            for (CartItem item:items){
+                Long skuId = item.getSkuId();
+                Integer count = item.getCount();
+                //扣库存
+                boolean b = skuStockService.lockSkuLockStock(skuId, count);
+                if(b == false){
+                    flag = false;
+                    noStockItem.get().add(item);
+                }
+            }
+            return flag;
+        });
+        //有问题异常跑出去，中断创建订单的业务
+
+
+
         Member member = memberComponent.getMemberByAccessToken(accessToken);
 
         //初始化前端订单vo数据
@@ -210,8 +291,32 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         //2、构造/保存订单项；ThreadLocal同一个线程共享数据
         saveOrderItem(order,accessToken);
 
+        try {
+            //等待结果
+            Boolean aBoolean = future.get();
+            if(aBoolean){
+                //订单扣库存成功;
+                return orderCreateVo;
+            }else {
+                //真的有人失败
+                orderCreateVo = new OrderCreateVo();
+                orderCreateVo.setLimit(false);
+                orderCreateVo.setToken("商品库存不足");
+                orderCreateVo.setCartItems(noStockItem.get());
 
-        return orderCreateVo;
+                //手动回滚；通知切面，方法结束后进行事务回滚
+                TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+                return orderCreateVo;
+            }
+        } catch (Exception e) {
+
+            orderCreateVo = new OrderCreateVo();
+            orderCreateVo.setToken("现在人太多了，请重新刷新再试");
+
+            //手动回滚；
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            return orderCreateVo;
+        }
     }
 
     @Override
