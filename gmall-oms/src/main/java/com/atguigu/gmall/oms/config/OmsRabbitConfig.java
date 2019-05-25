@@ -34,6 +34,23 @@ public class OmsRabbitConfig {
         return new TopicExchange("order-exchange",true,false);
     }
 
+    /**
+     * 秒杀单队列
+     */
+    @Bean
+    public Queue secKillQueue(){
+        return new Queue("seckill-order-queue",true,false,false);
+    }
+
+    @Bean
+    public Binding secKillBiding(){
+
+        return new Binding("seckill-order-queue",
+                Binding.DestinationType.QUEUE,
+                "order-exchange",
+                RoutingKeyConstant.ORDER_SECKILL_QUEUE_ROUTING_KEY,null);
+    }
+
 
     /**
      * 用户服务监听的订单队列
@@ -53,7 +70,7 @@ public class OmsRabbitConfig {
     public Queue orderdelayqueue(){
         Map<String, Object> arguments = new HashMap<>();
         //每个消息，发的时候动态设置过期时间
-        //arguments.put("x-message-ttl",100*1000);//这个队列里面所有消息的过期时间
+        arguments.put("x-message-ttl",RoutingKeyConstant.MESSAGE_TTL);//这个队列里面所有消息的过期时间
         arguments.put("x-dead-letter-exchange","order-exchange");//消息死了交给那个交换机
         arguments.put("x-dead-letter-routing-key","order.dead");//死信发出去的路由键
         return new Queue("order-delay-queue",true,false,false,arguments);

@@ -1,12 +1,15 @@
 package com.atguigu.gmall.pms;
 
 import com.alibaba.dubbo.config.spring.context.annotation.EnableDubbo;
+import com.google.common.util.concurrent.RateLimiter;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.util.DigestUtils;
+
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -115,6 +118,16 @@ public class GmallPmsApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(GmallPmsApplication.class, args);
+
+//        RateLimiter rateLimiter = RateLimiter.create(1, 1, TimeUnit.SECONDS);
+//
+//        for (int i=0;i<100;i++){
+//            rateLimiter.acquire();
+//            int finalI = i;
+//            new Thread(()->{
+//                System.out.println("当前线程"+Thread.currentThread().getName());
+//            },"线程"+i).start();
+//        }
     }
 
 }

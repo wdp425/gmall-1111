@@ -35,6 +35,7 @@ import com.atguigu.gmall.ums.service.MemberService;
 import com.atguigu.gmall.vo.mq.OrderMQVo;
 import com.atguigu.gmall.vo.order.OrderConfirmVo;
 import com.atguigu.gmall.vo.order.OrderCreateVo;
+import com.atguigu.gmall.vo.sec.SecKillOrderVo;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
@@ -44,11 +45,13 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.rabbitmq.client.Channel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
@@ -56,8 +59,7 @@ import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -105,6 +107,73 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
 
     ThreadLocal<List<CartItem>> threadLocal = new ThreadLocal<>();
 
+
+    /**
+     * 监听快速的秒杀单队列
+     */
+    @RabbitListener(queues = "seckill-order-queue")
+    public void secKillOrder(SecKillOrderVo orderVo,Channel channel,Message message) throws IOException {
+
+        log.info("订单系统感知到秒杀单进入，正在生产完整订单信息，{}",orderVo);
+        String accessToken = orderVo.getAccessToken();
+        Long skuId = orderVo.getSkuId();
+        SkuStock skuStock = productService.skuInfoById(skuId);
+
+        Member member = memberComponent.getMemberByAccessToken(accessToken);
+        //创建和保存订单
+        Order order = new Order();
+        order.setMemberId(member.getId());
+        order.setOrderSn(orderVo.getOrderSn());
+        order.setCreateTime(new Date());
+        order.setAutoConfirmDay(7);
+        //order.setBillContent()
+        order.setNote("");
+        order.setMemberUsername(member.getUsername());
+
+        //订单总额
+        order.setTotalAmount(skuStock.getPrice());
+        //按照用户的默认配送地址计算运费，默认包邮
+        order.setFreightAmount(new BigDecimal("0"));
+        order.setStatus(OrderStatusEnume.UNPAY.getCode());
+
+        //设置收货人信息
+        MemberReceiveAddress address = memberService.getMemberDefaultAddress(member.getId());
+        order.setReceiverName(address.getName());
+        order.setReceiverPhone(address.getPhoneNumber());
+        order.setReceiverPostCode(address.getPostCode());
+        order.setReceiverRegion(address.getRegion());
+        order.setReceiverCity(address.getCity());
+        order.setReceiverProvince(address.getProvince());
+        order.setReceiverDetailAddress(address.getDetailAddress());
+
+        orderMapper.insert(order);
+
+        OrderItem item = new OrderItem();
+        //自己封装，按照skuId查出商品信息，封装订单项
+        item.setProductSkuId(skuStock.getId());
+        item.setProductPrice(skuStock.getPrice());
+        item.setProductQuantity(1);
+
+        orderItemMapper.insert(item);
+
+
+        OrderMQVo vo = new OrderMQVo();
+        vo.setOrder(order);
+        vo.setItems(Arrays.asList(item));
+        rabbitTemplate.convertAndSend("order-exchange",
+                RoutingKeyConstant.USER_ORDER_QUEUE_ROUTING_KEY,vo,(m)->{
+            //进行修改
+            MessageProperties messageProperties = m.getMessageProperties();
+            //ms为单位；单独设置消息的过期时间
+            messageProperties.setExpiration(RoutingKeyConstant.MESSAGE_TTL.toString());
+            return m;
+        });
+        channel.basicAck(message.getMessageProperties().getDeliveryTag(),false);
+
+
+    }
+
+
     /**
      * 定时关单
      * @param
@@ -116,7 +185,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         //去数据库查看当前订单的支付状态，如果没支付就关闭订单；
         String orderSn = orderMQVo.getOrder().getOrderSn();
         try{
-            Order order = orderMapper.selectOne(new QueryWrapper<Order>().eq("", ""));
+            Order order = orderMapper.selectOne(new QueryWrapper<Order>().eq("order_sn", orderSn));
             if(order.getStatus() == OrderStatusEnume.UNPAY.getCode()){
                 //订单还未支付
                 Order updateOrder = new Order();
@@ -129,6 +198,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
             }
             channel.basicAck(message.getMessageProperties().getDeliveryTag(),false);
         }catch (Exception e){
+            log.error("系统异常：{}",e);
             //重新入队发给别人做
             channel.basicReject(message.getMessageProperties().getDeliveryTag(),true);
         }
@@ -136,6 +206,28 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
     }
 
 
+    /**
+     * 定时任务测试
+     * cron表达式：（秒级别）
+     *      * * * * * * *
+     *      秒 分 时  日 月 周（周几） 年(可以省略)
+     *
+     *    ,：枚举 5,8,11
+     *    -:区间  1-10
+     *    *：任意
+     *    /：步长：
+     *
+     *
+     * @return
+     */
+//    @Scheduled(cron = "1/10 * * LW * *")
+    //每分钟去数据库查询订单进行关闭
+    @Scheduled(cron = "0 * * * * ?")
+    public void task(){
+        //1、扫描所有过期。createTime+expire>currentTime(now())
+        //2、挨个关单
+        System.out.println("定时任务启动，开始扫描匹配数据库进行关单......");
+    }
 
 
     @Override
@@ -289,13 +381,31 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         orderMapper.insert(order);
 
         //2、构造/保存订单项；ThreadLocal同一个线程共享数据
-        saveOrderItem(order,accessToken);
+        List<OrderItem> orderItems = saveOrderItem(order, accessToken);
+
+//        ScheduledExecutorService threadPool = Executors.newScheduledThreadPool(10);
+//
+//        threadPool.schedule(()->{
+//            System.out.println("准备关单"+orderItems);
+//        },10, TimeUnit.SECONDS);
 
         try {
             //等待结果
             Boolean aBoolean = future.get();
             if(aBoolean){
                 //订单扣库存成功;
+                //将订单信息发给mq，让其他系统感知
+                OrderMQVo orderMQVo = new OrderMQVo();
+                orderMQVo.setOrder(order);
+                orderMQVo.setItems(orderItems);
+                rabbitTemplate.convertAndSend("order-exchange",RoutingKeyConstant.USER_ORDER_QUEUE_ROUTING_KEY,orderMQVo,(message)->{
+                    //进行修改
+                    MessageProperties messageProperties = message.getMessageProperties();
+                    //ms为单位；单独设置消息的过期时间
+                    messageProperties.setExpiration(RoutingKeyConstant.MESSAGE_TTL.toString());
+                    return message;
+                });
+
                 return orderCreateVo;
             }else {
                 //真的有人失败
@@ -372,7 +482,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         return "success";
     }
 
-    private void saveOrderItem(Order order,String accessToken) {
+    private List<OrderItem> saveOrderItem(Order order,String accessToken) {
 
         List<Long> skuIds = new ArrayList<>();
         List<CartItem> cartItems = threadLocal.get();
@@ -422,6 +532,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
 
         //3、清除购物车中已经下单的商品
         cartService.removeCartItem(accessToken,skuIds);
+        return orderItems;
     }
 
     /**

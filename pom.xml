@@ -19,6 +19,9 @@
         <module>gmall-sms</module>
         <module>gmall-ums</module>
         <module>gmall-sso-server</module>
+        <module>gmall-cart</module>
+        <module>gmall-search</module>
+        <module>gmall-shop-portal</module>
     </modules>
 
 

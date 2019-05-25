@@ -18,8 +18,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * <p>
@@ -76,19 +79,18 @@ public class SkuStockServiceImpl extends ServiceImpl<SkuStockMapper, SkuStock> i
      * 监听订单关闭消息
      */
     @RabbitListener(queues = "stock-order-release-queue")
-    public void releaseStock(OrderMQVo mqVo, Message message, Channel channel){
+    public void releaseStock(OrderMQVo mqVo, Message message, Channel channel) throws IOException {
         log.info("库存服务收到已经关闭的订单消息，开始解锁库存：{}",mqVo);
         //订单本身就是一个undo-log；
         //查出这个订单当时买了哪些商品，和这些商品的数量，然后解锁
         List<OrderItem> items = mqVo.getItems();
-        for (OrderItem item:items
-             ) {
+        for (OrderItem item:items) {
             Long skuId = item.getProductSkuId();
             Integer quantity = item.getProductQuantity();
             skuStockMapper.releaseStock(skuId,quantity);
         }
-
-
+        //channel.basicQos(1);
+        channel.basicAck(message.getMessageProperties().getDeliveryTag(),false);
     }
 
 

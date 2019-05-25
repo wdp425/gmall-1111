@@ -62,4 +62,9 @@ public class MemberServiceImpl extends ServiceImpl<MemberMapper, Member> impleme
     public MemberReceiveAddress getMemberAddressByAddressId(Long addressId) {
         return addressMapper.selectById(addressId);
     }
+
+    @Override
+    public MemberReceiveAddress getMemberDefaultAddress(Long id) {
+        return addressMapper.selectOne(new QueryWrapper<MemberReceiveAddress>().eq("member_id",id).eq("default_status",1));
+    }
 }

@@ -23,4 +23,11 @@ public interface MemberService extends IService<Member> {
     List<MemberReceiveAddress> getMemberAddress(Long id);
 
     MemberReceiveAddress getMemberAddressByAddressId(Long addressId);
+
+    /**
+     * 获取用户的默认地址
+     * @param id
+     * @return
+     */
+    MemberReceiveAddress getMemberDefaultAddress(Long id);
 }
