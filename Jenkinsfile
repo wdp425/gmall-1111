@@ -4,13 +4,13 @@ pipeline {
     stages {
         stage('第一步,检测maven环境是否正确') {
             steps {
-                mvn -v
+                sh 'mvn -v'
                 echo 'mvn环境正确可以使用..'
             }
         }
         stage('第二步,检测java环境是否正确') {
             steps {
-                java -version
+                sh 'java -version'
                 echo 'java环境正常可以使用..'
             }
         }
