@@ -52,14 +52,16 @@
  systemctl daemon-reload // 1，加载docker守护线程
  systemctl restart docker // 2，重启docker
 ```
- - 安装所有项目到仓库
+ - 安装所有项目到仓库，
  ```shell
+  #在gmall-parent执行以下命令
   mvn clean install -Dmaven.test.skip=true
  ```
  
  - docker打包项目
  
   ```shell
+    #在需要打包的项目执行以下命令
     mvn clean package -Dmaven.test.skip=true docker:build
    ```
   
@@ -68,6 +70,41 @@
     docker run -d -p 8081:8081 --name gmall-admin-web 94b3bd3aeb52
    ```
   
+
+# docker自定义Dockerfile构建自定义镜像
+   - 准备资源 .jar .tar.gz  ，将Dockerfile和资源放在一起
+   - 编写Dockerfile文件
+   ```dockerfile
+    # 基础镜像的名字
+    FROM centos
+    
+    # 维护者信息
+    MAINTAINER leifengyangc@163.com
+    
+    # 将准备好的tar.gz这个压缩包，解压到当前自己容器的 /usr/local/src目录下
+    ADD nginx-1.14.2.tar.gz /usr/local/src
+    
+    # 运行我们需要的一些命令,docker在构建镜像的时候会自动运行这些命令，来改变当前容器里面的一些内容
+    RUN yum install -y gcc gcc-c++ glibc make autoconf openssl openssl-devel
+    RUN yum install -y libxslt-devel -y gd gd-devel GeoIP GeoIP-devel pcre pcre-devel
+    RUN useradd -M -s /sbin/nologin nginx
+    
+    # 相当于cd 到之前解压好的目录位置；  cd /usr/local/src/nginx-1.14.2
+    WORKDIR /usr/local/src/nginx-1.14.2
+    
+    # 配置nginx 然后make和make install
+    RUN ./configure --user=nginx --group=nginx --prefix=/usr/local/nginx --with-file-aio --with-http_ssl_module --with-http_realip_module --with-http_addition_module --with-http_xslt_module --with-http_image_filter_module --with-http_geoip_module --with-http_sub_module --with-http_dav_module --with-http_flv_module --with-http_mp4_module --with-http_gunzip_module --with-http_gzip_static_module --with-http_auth_request_module --with-http_random_index_module --with-http_secure_link_module --with-http_degradation_module --with-http_stub_status_module && make && make install
+    
+    # 暴露出当前容器的80端口
+    EXPOSE 80
+
+   ```
+   - 使用docker依据上次编写好的dockerfile构建我们的镜像
+   ```shell
+     docker build -t 镜像名:版本号  .(这个点是表示去哪里找到Dockerfile)
+   ```
+   
+## 我们推荐每个项目自己写上Dockerfile文件即可；
 
 
     

@@ -96,11 +96,13 @@
                 <version>1.2.0</version>
 
                 <configuration>
+                    <!--这是镜像名，docker images显示出来的名字-->
                     <imageName>gmall/${project.build.finalName}</imageName>
                     <!--这个jdk镜像稳定，容易下载来，官方的java以及openjdk都有问题 -->
-                    <baseImage>anapsix/alpine-java</baseImage>
-                    <!--<dockerDirectory>${basedir}/docker</dockerDirectory>  指定 Dockerfile 路径-->
-                    <entryPoint>["java","-jar","/${project.build.finalName}.jar"]</entryPoint>
+                   <!-- <baseImage>anapsix/alpine-java</baseImage>-->
+                    <!--指定 Dockerfile 路径;${basedir}指的是当前项目根路径-->
+                    <dockerDirectory>${basedir}/docker</dockerDirectory>
+                    <!--<entryPoint>["java","-jar","/${project.build.finalName}.jar"]</entryPoint>-->
                     <resources>
                         <resource>
                             <targetPath>/</targetPath>
