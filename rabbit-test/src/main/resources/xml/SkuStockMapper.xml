@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.atguigu.gmall.pms.mapper.SkuStockMapper">
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, product_id, sku_code, price, stock, low_stock, sp1, sp2, sp3, pic, sale, promotion_price, lock_stock
+    </sql>
+
+    <!--SkuStock getSkuStockAndLockStock(Long skuId);-->
+    <select id="getSkuStockAndLockStock" resultType="com.atguigu.gmall.pms.entity.SkuStock">
+        SELECT id,stock,lock_stock FROM `pms_sku_stock` WHERE id = #{skuId} FOR UPDATE;
+    </select>
+
+    <!-- void lockSkuLockStock(Long skuId, Long num);-->
+    <update id="lockSkuLockStock">
+        UPDATE pms_sku_stock SET lock_stock=lock_stock - #{num} WHERE id=#{skuId}
+    </update>
+
+    <!--    void releaseStock(Long skuId, Integer quantity);-->
+    <update id="releaseStock">
+         UPDATE pms_sku_stock SET lock_stock=lock_stock + #{quantity} WHERE id=#{skuId}
+    </update>
+
+</mapper>
