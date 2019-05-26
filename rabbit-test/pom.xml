@@ -46,6 +46,48 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
         </plugins>
+
+
+
+        <!--打包的时候就会起效果-->
+        <!--编写maven的资源打包规则；dev、prod只要是配置发生变化-->
+        <resources>
+            <!--告诉maven配置文件怎么打包-->
+            <!--这个下面的资源全打包。没有任何约束；-->
+            <!--1、把通用的所有配置都直接放在resources下-->
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <!--1、把通用的所有配置都直接放在resources下-->
+            <resource>
+                <directory>src/main/resources.${deploy.type}</directory>
+            </resource>
+
+        </resources>
     </build>
 
+
+    <!--多环境配置-->
+    <profiles>
+        <profile>
+            <!--代表这个是开发环境-->
+            <id>dev</id>
+            <!--默认是开发环境-->
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <!--规定一些自定义属性-->
+            <properties>
+                <deploy.type>dev</deploy.type>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>prod</id>
+            <!--规定一些自定义属性-->
+            <properties>
+                <deploy.type>prod</deploy.type>
+            </properties>
+        </profile>
+    </profiles>
 </project>
